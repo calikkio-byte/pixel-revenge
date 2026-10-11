@@ -2,23 +2,29 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0d17">
 <title>Pixel Tech Runner</title>
 <style>
-html,body{margin:0;height:100%;background:#0b0d17;color:#e8f0ff;font-family:"Courier New",Courier,monospace;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
-#wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-#box{position:relative;width:min(100vw,calc(100vh*16/9));aspect-ratio:16/9}
+html,body{margin:0;height:100%;background:#0b0d17;color:#e8f0ff;font-family:"Courier New",Courier,monospace;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#box{position:relative;width:100%;aspect-ratio:16/9}
 canvas{width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block;background:#000}
-#ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,20,.85);text-align:center;padding:2%;box-sizing:border-box;overflow:auto}
-.panel{max-width:94%}
-h1{font-size:clamp(16px,4.2vw,34px);margin:.2em 0;color:#ffd84a;letter-spacing:2px;text-shadow:3px 3px 0 #b02a3a}
-p{font-size:clamp(10px,1.9vw,16px);margin:.4em 0;line-height:1.35}
-button,input{font-family:inherit;font-size:clamp(11px,2vw,17px);border:3px solid #e8f0ff;background:#1b2250;color:#fff;padding:.5em .9em;margin:.25em;border-radius:0;cursor:pointer;text-transform:uppercase}
+#ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,20,.88);text-align:center;padding:2%;box-sizing:border-box;overflow:auto;touch-action:pan-y}
+.panel{max-width:96%;margin:auto}
+h1{font-size:calc(var(--fs,14px)*2.2);margin:.2em 0;color:#ffd84a;letter-spacing:2px;text-shadow:3px 3px 0 #b02a3a}
+p{font-size:var(--fs,14px);margin:.4em 0;line-height:1.35}
+button,input{font-family:inherit;font-size:var(--fs,14px);min-height:44px;border:3px solid #e8f0ff;background:#1b2250;color:#fff;padding:.4em .9em;margin:.25em;border-radius:0;cursor:pointer;text-transform:uppercase;touch-action:manipulation}
 button:active{background:#ffd84a;color:#000}
-input{background:#05060d;cursor:text;width:11em;text-align:center}
-.code{font-size:clamp(16px,4vw,30px);color:#6dffb0;border:3px dashed #6dffb0;display:inline-block;padding:.2em .6em;margin:.3em;letter-spacing:2px}
+input{font-size:max(16px,var(--fs,14px));background:#05060d;cursor:text;width:10em;text-align:center}
+.code{font-size:calc(var(--fs,14px)*1.9);color:#6dffb0;border:3px dashed #6dffb0;display:inline-block;padding:.2em .6em;margin:.3em;letter-spacing:2px}
 .opt{display:block;width:100%;text-align:left;text-transform:none}
 .err{color:#ff6b6b}
+.rot{display:none;color:#ffd84a}
+@media (orientation:portrait){.rot{display:block}}
 </style>
 </head>
 <body>
@@ -28,8 +34,9 @@ input{background:#05060d;cursor:text;width:11em;text-align:center}
 </div></div>
 <script>
 (()=>{
-const W=320,H=180,GY=150;
-const cv=document.getElementById('c'),ctx=cv.getContext('2d'),ov=document.getElementById('ov');
+let W=320;const H=180,GY=150;
+const cv=document.getElementById('c'),ctx=cv.getContext('2d',{alpha:false}),ov=document.getElementById('ov');
+const touch=typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches;
 ctx.imageSmoothingEnabled=false;
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
@@ -37,11 +44,14 @@ const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;r
 let muted=false,ac=null;
 function snd(f,d=.1,type='square',v=.05,f2){
   if(muted)return;
-  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();
     o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
     g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(ac.destination);o.start();o.stop(t+d);}catch(e){}
 }
 const arp=(a,d=.12,gap=80)=>a.forEach((f,i)=>setTimeout(()=>snd(f,d),i*gap));
+// musichetta originale del bonus (melodia a onda quadra + basso a triangolo), in loop finché dura il power-up
+const MEL=[523,659,784,988,880,784,659,587,523,659,784,1047,988,880,784,659],BAS=[131,131,196,196,175,175,196,196];
+function bonusMusic(){const i=musI++;snd(MEL[i%16],.11,'square',.025);if(i%2===0)snd(BAS[(i>>1)%8],.2,'triangle',.05);}
 
 // ---------- pixel art: sprite da array di stringhe, pre-renderizzati su canvas off-screen ----------
 function spr(rows,pal,s){
@@ -117,7 +127,7 @@ function buildBg(l){
 // ---------- stato ----------
 let mode='menu',level=1,lives=2,ls=0,bank=0,speed=3.2,scroll=0,spT=60,inv=0,hurt=0,msg='',msgT=0;
 let boss=null,bossDone=false,pu5=false,fN=0,last=0,qopts=[];
-let bits=0,shake=0,tutT=0,wasAir=false,combo=0,cy=GY-30,lost=0,lastSt=0,pops=[],jbuf=0,bonus=0;
+let bits=0,shake=0,tutT=0,wasAir=false,combo=0,cy=GY-30,lost=0,lastSt=0,pops=[],jbuf=0,bonus=0,musI=0,musT=0,smash=0,qIntro=0,qAt=0,qShown=-1;
 const stats=()=>`<p>BIT RACCOLTI: ${bits} &middot; VITE PERSE: ${lost}</p>`;
 let p={x:36,y:GY-24,vy:0,j:0},obs=[],items=[],parts=[],pl2,pl4,bossS,bg=buildBg(1);
 const score=()=>bank+bonus+Math.floor(ls);
@@ -132,6 +142,7 @@ function startLevel(){
   ls=0;obs=[];items=[];parts=[];boss=null;bossDone=false;pu5=false;spT=60;inv=0;hurt=0;
   tutT=(level===1&&bank===0)?420:0;shake=0;combo=0;cy=GY-30;lastSt=0;pops=[];jbuf=0;speed=2.2+(level-1)*.35;
   p={x:36,y:GY-24,vy:0,j:0};setupSprites();bg=buildBg(level);
+  try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(()=>{});}catch(e){}
   msg='LIVELLO '+level+': '+LV[level-1].n.toUpperCase()+(level===LV.length?' - FINALE!':'');msgT=140;mode='play';ov.style.display='none';
 }
 
@@ -145,7 +156,7 @@ function jump(){
 const hit=(a,b,m=3)=>a.x+m<b.x+b.w-m&&a.x+a.w-m>b.x+m&&a.y+m<b.y+b.h-m&&a.y+a.h-m>b.y+m;
 function burst(x,y,c,n=10){for(let i=0;i<n;i++)parts.push({x,y,vx:rnd(-3,3),vy:rnd(-4,1),l:rnd(20,40),c});}
 function damage(){
-  if(hurt>0||inv>0)return;hurt=90;lives--;lost++;combo=0;shake=14;snd(120,.3,'sawtooth',.08,60);burst(p.x+12,p.y+12,'#ff4d6d',14);
+  if(hurt>0||inv>0)return;hurt=90;lives--;lost++;combo=0;shake=14;try{navigator.vibrate&&navigator.vibrate(60);}catch(e){}snd(120,.3,'sawtooth',.08,60);burst(p.x+12,p.y+12,'#ff4d6d',14);
   if(lives<=0)gameOver();
 }
 function spawnObs(){
@@ -167,6 +178,7 @@ function update(dt){
   p.vy+=.55*dt;p.y+=p.vy*dt;
   if(p.y+ph>=GY){p.y=GY-ph;p.vy=0;p.j=0;if(wasAir){burst(p.x+ph/2,GY-3,'#cfd8e8',5);wasAir=false;if(jbuf>0){jbuf=0;jump();}}}else wasAir=true;
   if(hurt>0)hurt-=dt;if(inv>0)inv-=dt;if(msgT>0)msgT-=dt;if(tutT>0)tutT-=dt;if(shake>0)shake-=dt;if(jbuf>0)jbuf-=dt;
+  if(inv>0){musT-=dt;if(musT<=0){musT+=7.5;bonusMusic();}}
   // durata a tempo: 45 s per livello, 90 s per l'ultimo (il progresso non dipende dalla velocità)
   const LL=LV[level-1];
   ls=Math.min(ls+1000/((level===LV.length?90:45)*60)*dt,(LL.boss&&!bossDone)?999:2e3);
@@ -195,14 +207,16 @@ function update(dt){
   for(const i of items)i.x-=sp;
   for(const i of items)if(i.t==='bit'){const dx=p.x+ph/2-(i.x+6),dy=p.y+ph/2-(i.y+6),d=Math.hypot(dx,dy);if(d<46&&d>1){i.x+=dx/d*2.8*dt;i.y+=dy/d*2.8*dt;}}
   for(const o of obs){
-    if(hit(pb,o)){if(G){o.dead=1;burst(o.x+o.w/2,o.y+o.h/2,'#ffd84a',12);}else{o.dead=1;damage();if(mode!=='play')return;}}
+    if(hit(pb,o)){if(G){o.dead=1;burst(o.x+o.w/2,o.y+o.h/2,'#ffd84a',12);
+        const pts=25+5*Math.min(smash,10);smash++;bonus+=pts;pops.push({x:o.x,y:o.y-4,t:'+'+pts,l:40});snd(220,.1,'square',.05,70);
+        if(smash%5===0){msg='SMASH x'+smash+'!';msgT=60;}}else{o.dead=1;damage();if(mode!=='play')return;}}
   }
   for(const i of items){
     if(hit(pb,i,i.t==='bit'?-3:2)){i.dead=1;
       if(i.t==='hr'){lives=Math.min(5,lives+1);snd(700,.2,'triangle',.06,1200);}
       else if(i.t==='bit'){bits++;bonus+=10;combo++;pops.push({x:i.x,y:i.y,t:'+10',l:30});snd(880+Math.min(combo,8)*60,.07,'square',.04);
         if(combo%5===0){bonus+=50;msg='COMBO x'+combo+'! +50';msgT=70;burst(p.x+12,p.y,'#ffd84a',10);}}
-      else{inv=360;msg='SUPER MODE!';msgT=90;arp([523,659,784,1047],.12,70);}}
+      else{inv=360;musI=0;musT=22;smash=0;msg='SUPER MODE!';msgT=90;arp([523,659,784,1047],.12,70);}}
   }
   if(boss&&boss.st!=='in'&&hit(pb,boss,5)&&hurt<=0){damage();if(mode!=='play')return;}
   obs=obs.filter(o=>!o.dead&&o.x+o.w>-10);items=items.filter(i=>!i.dead&&i.x+i.w>-10);
@@ -239,14 +253,19 @@ function draw(){
   ctx.fillStyle='#000';ctx.fillText('PUNTI '+String(score()).padStart(5,'0'),7,6);ctx.fillText('LV'+level+' '+LV[level-1].n.toUpperCase(),7,18);
   ctx.fillStyle='#fff';ctx.fillText('PUNTI '+String(score()).padStart(5,'0'),6,5);ctx.fillText('LV'+level+' '+LV[level-1].n.toUpperCase(),6,17);
   ctx.fillStyle='#000';ctx.fillRect(5,30,102,6);ctx.fillStyle='#6dffb0';ctx.fillRect(6,31,Math.min(100,ls/10),4);
+  if(inv>0&&mode==='play'){ // barra durata bonus
+    const f=Math.max(0,inv/360),low=inv<90&&fN%10<5;
+    ctx.fillStyle='#000';ctx.fillRect(5,40,102,8);ctx.fillStyle=low?'#ff4d6d':'#ffd84a';ctx.fillRect(6,41,Math.round(100*f),6);
+    ctx.fillStyle='#000';ctx.fillText('SUPER',112,40);ctx.fillStyle=low?'#ff4d6d':'#ffd84a';ctx.fillText('SUPER',111,39);
+  }
   for(let i=0;i<lives;i++)ctx.drawImage(S.hr1,W-14*(i+1)-2,6);
   ctx.textAlign='right';ctx.fillStyle='#000';ctx.fillText('BIT x'+bits,W-5,19);ctx.fillStyle='#ffd84a';ctx.fillText('BIT x'+bits,W-6,18);
   ctx.textAlign='center';
   const tx=(t,y,c)=>{ctx.fillStyle='#000';ctx.fillText(t,W/2+1,y+1);ctx.fillStyle=c;ctx.fillText(t,W/2,y);};
   if(msgT>0)tx(msg,60,'#ffd84a');
   if(tutT>0&&mode==='play'&&fN%40<30){
-    tx('TOCCA / CLIC / SPAZIO = SALTA',82,'#fff');
-    tx('2 VOLTE IN ARIA = DOPPIO SALTO (BIT ALTI!)',94,'#6dffb0');
+    tx(touch?'TOCCA LO SCHERMO = SALTA':'CLIC / SPAZIO = SALTA',82,'#fff');
+    tx(touch?'2 TOCCHI = DOPPIO SALTO (BIT ALTI!)':'2 VOLTE IN ARIA = DOPPIO SALTO (BIT ALTI!)',94,'#6dffb0');
     tx('RACCOGLI I BIT GIALLI E LE MELE (VITE)!',106,'#ffd84a');
   }
   ctx.textAlign='left';
@@ -259,16 +278,31 @@ function menu(){
   mode='menu';
   show(`<h1>PIXEL TECH RUNNER</h1>
   <p>Corri nella storia dei dispositivi, salta i bug e rispondi ai quiz!</p>
-  <p>1 tocco / clic / SPAZIO = salto &middot; 2 = doppio salto</p>
+  <p>${touch?'Tocca lo schermo = salto &middot; 2 tocchi = doppio salto':'Clic / SPAZIO = salto &middot; 2 volte = doppio salto'}</p>
   <p>Raccogli i BIT gialli per punti e combo: Pixi, il chip-amico, ti segue!</p>
-  <button data-a="start">INIZIA</button><button data-a="mute">SUONO: ${muted?'OFF':'ON'}</button><br>
-  <input id="pw" maxlength="12" placeholder="PASSWORD" autocomplete="off" autocapitalize="characters">
+  <p class="rot">Per giocare meglio ruota il telefono in orizzontale.</p>
+  <button data-a="start">INIZIA</button><button data-a="mute">SUONO: ${muted?'OFF':'ON'}</button>${document.fullscreenEnabled?'<button data-a="fs">SCHERMO INTERO</button>':''}<br>
+  <input id="pw" maxlength="12" placeholder="PASSWORD" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
   <button data-a="pw">VAI AL LIVELLO</button>
   <p class="err" id="er"></p>`);
 }
+// prima la schermata "Preparati" (3-2-1, nessun pulsante), poi la domanda: evita risposte involontarie
 function showQuiz(){
-  mode='quiz';const L=LV[level-1];
-  qopts=L.o.map((t,i)=>({t,ok:i===0})).sort(()=>Math.random()-.5);
+  mode='quiz';
+  qopts=LV[level-1].o.map((t,i)=>({t,ok:i===0})).sort(()=>Math.random()-.5);
+  qIntro=150;qShown=-1;
+}
+function tickQuiz(dt){
+  if(qIntro<=0)return;
+  qIntro-=dt;
+  if(qIntro<=0){renderQuiz();return;}
+  const n=Math.ceil(qIntro/50);
+  if(n!==qShown){qShown=n;
+    show(`<h1>QUIZ!</h1><p>Livello ${level} completato: ${LV[level-1].n}</p><p>Preparati a rispondere...</p><div class="code">${n}</div>`);
+    snd(500,.08,'square',.04);}
+}
+function renderQuiz(){
+  const L=LV[level-1];qAt=fN+36;
   show(`<h1>QUIZ! LV${level}</h1><p>${L.n}</p><p>${L.q}</p>`+
     qopts.map((o,i)=>`<button class="opt" data-a="q" data-v="${i}">${'ABC'[i]}) ${o.t}</button>`).join(''));
 }
@@ -297,8 +331,11 @@ async function share(){
 }
 ov.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,v=b.dataset.v;
+  if(a==='q'&&(qIntro>0||fN<qAt))return; // ignora tocchi troppo vicini alla comparsa delle risposte
   snd(600,.05,'square',.03);
   if(a==='mute'){muted=!muted;b.textContent='SUONO: '+(muted?'OFF':'ON');}
+  else if(a==='fs'){try{const r=document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+    if(r&&r.then)r.then(()=>{try{screen.orientation.lock('landscape').catch(()=>{});}catch(e){}}).catch(()=>{});}catch(e){}}
   else if(a==='start')startGame(1);
   else if(a==='pw'){const c=(document.getElementById('pw').value||'').trim().toUpperCase();let f=0;
     for(let l=2;l<=LV.length;l++)if(pw(l)===c)f=l;
@@ -317,9 +354,11 @@ ov.addEventListener('click',e=>{
 });
 
 // ---------- input ----------
-document.getElementById('box').addEventListener('pointerdown',e=>{if(mode==='play'){e.preventDefault();jump();}});
+// tutto lo schermo è l'area di tocco (anche fuori dal riquadro di gioco in verticale)
+window.addEventListener('pointerdown',e=>{if(mode==='play'){e.preventDefault();jump();}},{passive:false});
 function pauseGame(){if(mode!=='play')return;mode='pause';show('<h1>PAUSA</h1><p>Premi P o il pulsante per riprendere.</p><button data-a="unpause">RIPRENDI</button>');}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseGame();});
+window.addEventListener('blur',pauseGame);window.addEventListener('pagehide',pauseGame);
 window.addEventListener('keydown',e=>{if(e.code==='KeyP'&&e.target.tagName!=='INPUT'){if(mode==='play')pauseGame();else if(mode==='pause'){mode='play';ov.style.display='none';}}
   if(e.code==='KeyM'&&e.target.tagName!=='INPUT')muted=!muted;if(mode==='play'&&(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW')){e.preventDefault();jump();}});
 
@@ -327,9 +366,24 @@ window.addEventListener('keydown',e=>{if(e.code==='KeyP'&&e.target.tagName!=='IN
 function frame(t){
   requestAnimationFrame(frame);
   const dt=Math.min((t-last)/16.667,3)||1;last=t;
-  if(mode==='play')update(dt);else if(mode==='menu'||mode==='over')scroll+=.6*dt;
+  if(mode==='play')update(dt);else if(mode==='quiz')tickQuiz(dt);else if(mode==='menu'||mode==='over')scroll+=.6*dt;
   draw();
 }
+// ---------- adattamento allo schermo (telefono in verticale/orizzontale) ----------
+const box=document.getElementById('box'),wrap=document.getElementById('wrap');
+function resize(){
+  const cs=getComputedStyle(wrap),px=v=>parseFloat(v)||0;
+  const aw=Math.max(100,wrap.clientWidth-px(cs.paddingLeft)-px(cs.paddingRight));
+  const ah=Math.max(100,wrap.clientHeight-px(cs.paddingTop)-px(cs.paddingBottom));
+  const nw=Math.max(240,Math.min(400,Math.round(H*aw/ah/8)*8));
+  if(nw!==W){W=nw;cv.width=W;ctx.imageSmoothingEnabled=false;bg=buildBg(level);}
+  let sc=Math.min(aw/W,ah/H);if(sc>=3)sc=Math.floor(sc);
+  box.style.width=Math.floor(W*sc)+'px';box.style.height=Math.floor(H*sc)+'px';
+  document.documentElement.style.setProperty('--fs',Math.max(12,Math.min(18,W*sc/32))+'px');
+}
+window.addEventListener('resize',resize);window.addEventListener('orientationchange',()=>setTimeout(resize,150));
+window.addEventListener('contextmenu',e=>e.preventDefault());
+resize();
 setupSprites();menu();requestAnimationFrame(frame);
 })();
 </script>
